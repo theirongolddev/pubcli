@@ -95,16 +95,37 @@ pubcli categories -z 33101 --json
 
 ### `pubcli compare`
 
-Compare nearby stores and rank them by matching deal quality.
+Compare nearby stores and rank them by filtered deal quality. Requires `--zip`. Stores are ranked by number of matched deals, then deal score, then distance.
 
 ```bash
 pubcli compare --zip 33101
 pubcli compare --zip 33101 --category produce --sort savings
+pubcli compare --zip 33101 --bogo --count 3 --json
 ```
 
 ### `pubcli tui`
 
-Keyboard-driven interactive browser for deal lists.
+Full-screen interactive browser for deal lists with a responsive two-pane layout:
+- async startup loading spinner + skeleton while store/deals are fetched
+- visual deal sections (BOGO/category grouped) with jump navigation
+
+Controls:
+
+- `tab` — switch focus between list and detail panes
+- `/` — fuzzy filter deals in the list pane
+- `s` — cycle sort mode (`relevance` -> `savings` -> `ending`)
+- `g` — toggle BOGO-only inline filter
+- `c` — cycle category inline filter
+- `a` — cycle department inline filter
+- `l` — cycle result limit inline filter
+- `r` — reset inline sort/filter options back to CLI-start defaults
+- `j` / `k` or arrows — navigate list and scroll detail
+- `u` / `d` — half-page detail scroll
+- `b` / `f` or `pgup` / `pgdown` — full-page detail scroll
+- `[` / `]` — jump to previous/next section
+- `1..9` — jump directly to a numbered section
+- `?` — toggle inline help
+- `q` — quit
 
 ```bash
 pubcli tui --zip 33101
@@ -113,13 +134,13 @@ pubcli tui --store 1425 --category meat --sort ending
 
 ## Flags
 
-Global flags:
+Global flags (available on all commands):
 
 - `-s, --store string` Publix store number (example: `1425`)
 - `-z, --zip string` ZIP code for store lookup
 - `--json` Output JSON instead of styled terminal output
 
-Deal filtering flags (`pubcli` root command):
+Deal filtering flags (available on `pubcli`, `compare`, and `tui`):
 
 - `--bogo` Show only BOGO deals
 - `-c, --category string` Filter by category (example: `bogo`, `meat`, `produce`)
@@ -128,16 +149,39 @@ Deal filtering flags (`pubcli` root command):
 - `--sort string` Sort by `relevance` (default), `savings`, or `ending`
 - `-n, --limit int` Limit results (`0` means no limit)
 
+Compare-specific flags:
+
+- `--count int` Number of nearby stores to compare, 1-10 (default `5`)
+
+Sort accepts aliases: `end`, `expiry`, and `expiration` are equivalent to `ending`.
+
 ## Behavior Notes
 
-- Either `--store` or `--zip` is required for deal and category lookups.
+- Either `--store` or `--zip` is required for deal and category lookups. `compare` requires `--zip`.
 - If only `--zip` is provided, the nearest store is selected automatically.
 - When using text output and ZIP-based store resolution, the selected store is shown.
-- Filtering is applied in this order: `bogo`, `category`, `department`, `query`, `limit`.
-- Category matching is case-insensitive and supports practical synonyms (for example `veggies` matches `produce`).
+- Filtering is applied in this order: `bogo` + `category`, `department`, `query`, `sort`, `limit`.
+- Category matching is case-insensitive and supports synonym groups (see below).
 - Department and query filters use case-insensitive substring matching.
 - Running `pubcli` with no args prints compact quick-start help.
 - When stdout is not a TTY (for example piping to another process), JSON output is enabled automatically unless explicitly set.
+
+### Category Synonyms
+
+Category filtering recognizes synonyms so common names map to the right deals:
+
+| Category | Also matches |
+|----------|-------------|
+| `bogo` | `bogof`, `buy one get one`, `buy1get1`, `2 for 1`, `two for one` |
+| `produce` | `fruit`, `fruits`, `vegetable`, `vegetables`, `veggie`, `veggies` |
+| `meat` | `beef`, `chicken`, `poultry`, `pork`, `seafood` |
+| `dairy` | `milk`, `cheese`, `yogurt` |
+| `bakery` | `bread`, `pastry`, `pastries` |
+| `deli` | `delicatessen`, `cold cuts`, `lunch meat` |
+| `frozen` | `frozen foods` |
+| `grocery` | `pantry`, `shelf` |
+
+Synonym matching is bidirectional — using `chicken` as a category filter matches deals tagged `meat`, and vice versa.
 
 ## CLI Input Tolerance
 
@@ -147,6 +191,18 @@ The CLI auto-corrects common input mistakes and prints a `note:` describing the 
 - `zip=33101` -> `--zip=33101`
 - `--ziip 33101` -> `--zip 33101`
 - `stores zip 33101` -> `stores --zip 33101`
+- `categoriess` -> `categories`
+
+Flag aliases are recognized and rewritten:
+
+| Alias | Resolves to |
+|-------|------------|
+| `zipcode`, `postal-code` | `--zip` |
+| `store-number`, `storeno` | `--store` |
+| `dept` | `--department` |
+| `search` | `--query` |
+| `sortby`, `orderby` | `--sort` |
+| `max` | `--limit` |
 
 Command argument tokens are preserved for command workflows like:
 
@@ -191,6 +247,21 @@ Object map of category name to deal count:
   "produce": 81
 }
 ```
+
+### Compare (`pubcli compare ... --json`)
+
+Array of objects ranked by deal quality:
+
+- `rank` (number)
+- `number` (string) — store number
+- `name` (string)
+- `city` (string)
+- `state` (string)
+- `distance` (string)
+- `matchedDeals` (number)
+- `bogoDeals` (number)
+- `score` (number)
+- `topDeal` (string)
 
 ## Structured Errors
 
