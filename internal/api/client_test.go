@@ -127,6 +127,34 @@ func TestFetchStores_NoResults(t *testing.T) {
 	assert.Empty(t, result)
 }
 
+func TestFetchSavings_TrailingJSONIsRejected(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"Savings":[],"LanguageId":1} {"extra":true}`))
+	}))
+	defer srv.Close()
+
+	client := api.NewClientWithBaseURLs(srv.URL, "")
+	_, err := client.FetchSavings(context.Background(), "1425")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "decoding")
+}
+
+func TestFetchStores_MalformedJSONReturnsDecodeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"Stores":`))
+	}))
+	defer srv.Close()
+
+	client := api.NewClientWithBaseURLs("", srv.URL)
+	_, err := client.FetchStores(context.Background(), "37042", 5)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "decoding")
+}
+
 func TestStoreNumber(t *testing.T) {
 	tests := []struct {
 		input string

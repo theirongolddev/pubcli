@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,10 +43,10 @@ func NewClientWithBaseURLs(savingsURL, storeURL string) *Client {
 	}
 }
 
-func (c *Client) get(ctx context.Context, reqURL, storeNumber string) ([]byte, error) {
+func (c *Client) getAndDecode(ctx context.Context, reqURL, storeNumber string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return fmt.Errorf("creating request: %w", err)
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -56,19 +57,22 @@ func (c *Client) get(ctx context.Context, reqURL, storeNumber string) ([]byte, e
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
+		return fmt.Errorf("executing request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, reqURL)
+		return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, reqURL)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(out); err != nil {
+		return fmt.Errorf("decoding response: %w", err)
 	}
-	return body, nil
+	if err := dec.Decode(new(struct{})); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("decoding response: trailing JSON content")
+	}
+	return nil
 }
 
 // FetchStores finds Publix stores near the given zip code.
@@ -81,14 +85,9 @@ func (c *Client) FetchStores(ctx context.Context, zipCode string, count int) ([]
 		"zipCode":                  {zipCode},
 	}
 
-	body, err := c.get(ctx, c.storeURL+"?"+params.Encode(), "")
-	if err != nil {
-		return nil, fmt.Errorf("fetching stores: %w", err)
-	}
-
 	var resp StoreResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("decoding stores: %w", err)
+	if err := c.getAndDecode(ctx, c.storeURL+"?"+params.Encode(), "", &resp); err != nil {
+		return nil, fmt.Errorf("fetching stores: %w", err)
 	}
 	return resp.Stores, nil
 }
@@ -96,22 +95,17 @@ func (c *Client) FetchStores(ctx context.Context, zipCode string, count int) ([]
 // FetchSavings fetches all weekly ad savings for the given store.
 func (c *Client) FetchSavings(ctx context.Context, storeNumber string) (*SavingsResponse, error) {
 	params := url.Values{
-		"page":                    {"1"},
-		"pageSize":                {"0"},
+		"page":                     {"1"},
+		"pageSize":                 {"0"},
 		"includePersonalizedDeals": {"false"},
-		"languageID":              {"1"},
-		"isWeb":                   {"true"},
-		"getSavingType":           {"WeeklyAd"},
-	}
-
-	body, err := c.get(ctx, c.savingsURL+"?"+params.Encode(), storeNumber)
-	if err != nil {
-		return nil, fmt.Errorf("fetching savings: %w", err)
+		"languageID":               {"1"},
+		"isWeb":                    {"true"},
+		"getSavingType":            {"WeeklyAd"},
 	}
 
 	var resp SavingsResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("decoding savings: %w", err)
+	if err := c.getAndDecode(ctx, c.savingsURL+"?"+params.Encode(), storeNumber, &resp); err != nil {
+		return nil, fmt.Errorf("fetching savings: %w", err)
 	}
 	return &resp, nil
 }
