@@ -1,0 +1,48 @@
+# Go binaries and build outputs
+/pubcli
+/publix-deals
+/bin/
+/build/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go test, coverage, and profiling artifacts
+*.out
+coverage.out
+coverage.txt
+*.coverprofile
+*.prof
+*.pprof
+
+# Local Go tool caches
+.gocache/
+.gomodcache/
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local temp/log files
+*.log
+tmp/
+temp/
+
+# Local VCS helper state
+.jj/
