@@ -60,7 +60,9 @@ func categoryAliasList(wanted string) []string {
 	addAlias(group)
 
 	if synonyms, ok := categorySynonyms[group]; ok {
-		out = append(out, synonyms...)
+		for _, s := range synonyms {
+			addAlias(s)
+		}
 	}
 	return out
 }
@@ -92,12 +94,6 @@ func (m categoryMatcher) matches(category string) bool {
 		}
 	}
 
-	// Fast path: if no separators are present and direct aliases didn't match,
-	// normalization would only add overhead for common categories like "grocery".
-	if !strings.ContainsAny(trimmed, "-_ ") {
-		return false
-	}
-
 	norm := normalizeCategory(trimmed)
 	_, ok := m.normalized[norm]
 	return ok
@@ -108,14 +104,16 @@ func normalizeCategory(raw string) string {
 	if s == "" {
 		return ""
 	}
-	s = strings.ReplaceAll(s, "_", " ")
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.Join(strings.Fields(s), " ")
+	if strings.ContainsAny(s, "_-") {
+		s = strings.ReplaceAll(s, "_", " ")
+		s = strings.ReplaceAll(s, "-", " ")
+		s = strings.Join(strings.Fields(s), " ")
+	}
 	switch {
 	case len(s) > 4 && strings.HasSuffix(s, "ies"):
-		s = strings.TrimSuffix(s, "ies") + "y"
+		s = s[:len(s)-3] + "y"
 	case len(s) > 3 && strings.HasSuffix(s, "s") && !strings.HasSuffix(s, "ss"):
-		s = strings.TrimSuffix(s, "s")
+		s = s[:len(s)-1]
 	}
 	return s
 }
