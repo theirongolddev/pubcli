@@ -7,7 +7,10 @@
 - Fetch weekly ad deals for a specific store
 - Resolve nearest Publix store from a ZIP code
 - Filter deals by category, department, keyword, and BOGO status
+- Sort deals by estimated savings or ending date
 - List weekly categories with deal counts
+- Compare nearby stores for best filtered deal coverage
+- Browse deals interactively in terminal (`tui`)
 - Output data as formatted terminal text or JSON
 - Generate shell completions (`bash`, `zsh`, `fish`, `powershell`)
 - Tolerate minor CLI syntax mistakes when intent is clear
@@ -90,6 +93,24 @@ pubcli categories --store 1425
 pubcli categories -z 33101 --json
 ```
 
+### `pubcli compare`
+
+Compare nearby stores and rank them by matching deal quality.
+
+```bash
+pubcli compare --zip 33101
+pubcli compare --zip 33101 --category produce --sort savings
+```
+
+### `pubcli tui`
+
+Keyboard-driven interactive browser for deal lists.
+
+```bash
+pubcli tui --zip 33101
+pubcli tui --store 1425 --category meat --sort ending
+```
+
 ## Flags
 
 Global flags:
@@ -104,6 +125,7 @@ Deal filtering flags (`pubcli` root command):
 - `-c, --category string` Filter by category (example: `bogo`, `meat`, `produce`)
 - `-d, --department string` Filter by department (substring match, case-insensitive)
 - `-q, --query string` Search title/description (case-insensitive)
+- `--sort string` Sort by `relevance` (default), `savings`, or `ending`
 - `-n, --limit int` Limit results (`0` means no limit)
 
 ## Behavior Notes
@@ -112,7 +134,7 @@ Deal filtering flags (`pubcli` root command):
 - If only `--zip` is provided, the nearest store is selected automatically.
 - When using text output and ZIP-based store resolution, the selected store is shown.
 - Filtering is applied in this order: `bogo`, `category`, `department`, `query`, `limit`.
-- Category matching is exact and case-insensitive.
+- Category matching is case-insensitive and supports practical synonyms (for example `veggies` matches `produce`).
 - Department and query filters use case-insensitive substring matching.
 - Running `pubcli` with no args prints compact quick-start help.
 - When stdout is not a TTY (for example piping to another process), JSON output is enabled automatically unless explicitly set.
