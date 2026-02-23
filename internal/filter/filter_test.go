@@ -1,6 +1,8 @@
 package filter_test
 
 import (
+	"html"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,5 +152,49 @@ func TestCleanText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, filter.CleanText(tt.input), "CleanText(%q)", tt.input)
+	}
+}
+
+func legacyCleanText(s string) string {
+	s = html.UnescapeString(s)
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return strings.TrimSpace(s)
+}
+
+func BenchmarkCleanText_Plain_New(b *testing.B) {
+	const input = "Simple Weekly Deal Title 123"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = filter.CleanText(input)
+	}
+}
+
+func BenchmarkCleanText_Plain_Legacy(b *testing.B) {
+	const input = "Simple Weekly Deal Title 123"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = legacyCleanText(input)
+	}
+}
+
+func BenchmarkCleanText_Escaped_New(b *testing.B) {
+	const input = "  Eight O&#39;Clock &amp; Tea\r\nSpecial  "
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = filter.CleanText(input)
+	}
+}
+
+func BenchmarkCleanText_Escaped_Legacy(b *testing.B) {
+	const input = "  Eight O&#39;Clock &amp; Tea\r\nSpecial  "
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = legacyCleanText(input)
 	}
 }

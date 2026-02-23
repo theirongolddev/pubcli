@@ -18,40 +18,72 @@ type Options struct {
 
 // Apply filters a slice of SavingItems according to the given options.
 func Apply(items []api.SavingItem, opts Options) []api.SavingItem {
-	result := items
+	wantCategory := opts.Category != ""
+	wantDepartment := opts.Department != ""
+	wantQuery := opts.Query != ""
+	needsFiltering := opts.BOGO || wantCategory || wantDepartment || wantQuery
 
-	if opts.BOGO {
-		result = where(result, func(i api.SavingItem) bool {
-			return ContainsIgnoreCase(i.Categories, "bogo")
-		})
+	if !needsFiltering {
+		if opts.Limit > 0 && opts.Limit < len(items) {
+			return items[:opts.Limit]
+		}
+		return items
 	}
 
-	if opts.Category != "" {
-		result = where(result, func(i api.SavingItem) bool {
-			return ContainsIgnoreCase(i.Categories, opts.Category)
-		})
+	var result []api.SavingItem
+	if opts.Limit > 0 && opts.Limit < len(items) {
+		result = make([]api.SavingItem, 0, opts.Limit)
+	} else {
+		result = make([]api.SavingItem, 0, len(items))
 	}
 
-	if opts.Department != "" {
-		dept := strings.ToLower(opts.Department)
-		result = where(result, func(i api.SavingItem) bool {
-			return strings.Contains(strings.ToLower(Deref(i.Department)), dept)
-		})
+	category := opts.Category
+	department := strings.ToLower(opts.Department)
+	query := strings.ToLower(opts.Query)
+
+	for _, item := range items {
+		if opts.BOGO || wantCategory {
+			hasBogo := !opts.BOGO
+			hasCategory := !wantCategory
+
+			for _, c := range item.Categories {
+				if !hasBogo && strings.EqualFold(c, "bogo") {
+					hasBogo = true
+				}
+				if !hasCategory && strings.EqualFold(c, category) {
+					hasCategory = true
+				}
+				if hasBogo && hasCategory {
+					break
+				}
+			}
+
+			if !hasBogo || !hasCategory {
+				continue
+			}
+		}
+
+		if wantDepartment && !strings.Contains(strings.ToLower(Deref(item.Department)), department) {
+			continue
+		}
+
+		if wantQuery {
+			title := strings.ToLower(CleanText(Deref(item.Title)))
+			desc := strings.ToLower(CleanText(Deref(item.Description)))
+			if !strings.Contains(title, query) && !strings.Contains(desc, query) {
+				continue
+			}
+		}
+
+		result = append(result, item)
+		if opts.Limit > 0 && len(result) >= opts.Limit {
+			break
+		}
 	}
 
-	if opts.Query != "" {
-		q := strings.ToLower(opts.Query)
-		result = where(result, func(i api.SavingItem) bool {
-			title := strings.ToLower(CleanText(Deref(i.Title)))
-			desc := strings.ToLower(CleanText(Deref(i.Description)))
-			return strings.Contains(title, q) || strings.Contains(desc, q)
-		})
+	if len(result) == 0 {
+		return nil
 	}
-
-	if opts.Limit > 0 && opts.Limit < len(result) {
-		result = result[:opts.Limit]
-	}
-
 	return result
 }
 
@@ -76,21 +108,19 @@ func Deref(s *string) string {
 
 // CleanText unescapes HTML entities and normalizes whitespace.
 func CleanText(s string) string {
+	if !strings.ContainsAny(s, "&\r\n") {
+		return strings.TrimSpace(s)
+	}
+
 	s = html.UnescapeString(s)
+	if !strings.ContainsAny(s, "\r\n") {
+		return strings.TrimSpace(s)
+	}
+
 	s = strings.ReplaceAll(s, "\r\n", " ")
 	s = strings.ReplaceAll(s, "\r", " ")
 	s = strings.ReplaceAll(s, "\n", " ")
 	return strings.TrimSpace(s)
-}
-
-func where(items []api.SavingItem, fn func(api.SavingItem) bool) []api.SavingItem {
-	var result []api.SavingItem
-	for _, item := range items {
-		if fn(item) {
-			result = append(result, item)
-		}
-	}
-	return result
 }
 
 // ContainsIgnoreCase reports whether any element in slice matches val case-insensitively.
