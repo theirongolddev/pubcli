@@ -175,10 +175,9 @@ func classifyCLIError(err error) *cliError {
 		}
 	case strings.Contains(lowerMsg, "unexpected status"),
 		strings.Contains(lowerMsg, "executing request"),
-		strings.Contains(lowerMsg, "reading response"),
-		strings.Contains(lowerMsg, "decoding savings"),
-		strings.Contains(lowerMsg, "decoding stores"),
+		strings.Contains(lowerMsg, "decoding response"),
 		strings.Contains(lowerMsg, "fetching deals"),
+		strings.Contains(lowerMsg, "fetching savings"),
 		strings.Contains(lowerMsg, "fetching stores"),
 		strings.Contains(lowerMsg, "finding stores"):
 		return &cliError{
