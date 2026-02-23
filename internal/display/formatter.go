@@ -151,10 +151,7 @@ func PrintWarning(w io.Writer, msg string) {
 }
 
 func printDeal(w io.Writer, item api.SavingItem) {
-	title := filter.CleanText(filter.Deref(item.Title))
-	if title == "" {
-		title = "Unknown"
-	}
+	title := fallbackDealTitle(item)
 	savings := filter.CleanText(filter.Deref(item.Savings))
 	desc := filter.CleanText(filter.Deref(item.Description))
 	dept := filter.CleanText(filter.Deref(item.Department))
@@ -196,6 +193,37 @@ func printDeal(w io.Writer, item api.SavingItem) {
 	if len(meta) > 0 {
 		fmt.Fprintf(w, "    %s\n", dimStyle.Render(strings.Join(meta, " | ")))
 	}
+}
+
+func fallbackDealTitle(item api.SavingItem) string {
+	if title := filter.CleanText(filter.Deref(item.Title)); title != "" {
+		return title
+	}
+
+	brand := filter.CleanText(filter.Deref(item.Brand))
+	dept := filter.CleanText(filter.Deref(item.Department))
+	switch {
+	case brand != "" && dept != "":
+		return fmt.Sprintf("%s deal (%s)", brand, dept)
+	case brand != "":
+		return brand + " deal"
+	case dept != "":
+		return dept + " deal"
+	}
+
+	if desc := filter.CleanText(filter.Deref(item.Description)); desc != "" {
+		const max = 48
+		if len(desc) > max {
+			return desc[:max-3] + "..."
+		}
+		return desc
+	}
+
+	if item.ID != "" {
+		return "Deal " + item.ID
+	}
+
+	return "Untitled deal"
 }
 
 func toDealJSON(item api.SavingItem) DealJSON {

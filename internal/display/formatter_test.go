@@ -55,6 +55,41 @@ func TestPrintDeals_ContainsExpectedContent(t *testing.T) {
 	assert.NotContains(t, output, "&amp;")
 }
 
+func TestPrintDeals_FallbackTitleFromBrandAndDepartment(t *testing.T) {
+	items := []api.SavingItem{
+		{
+			ID:         "fallback-1",
+			Title:      nil,
+			Brand:      ptr("Publix"),
+			Department: ptr("Meat"),
+			Categories: []string{"meat"},
+		},
+	}
+
+	var buf bytes.Buffer
+	display.PrintDeals(&buf, items)
+	output := buf.String()
+
+	assert.Contains(t, output, "Publix deal (Meat)")
+	assert.NotContains(t, output, "Unknown")
+}
+
+func TestPrintDeals_FallbackTitleFromID(t *testing.T) {
+	items := []api.SavingItem{
+		{
+			ID:    "fallback-2",
+			Title: nil,
+		},
+	}
+
+	var buf bytes.Buffer
+	display.PrintDeals(&buf, items)
+	output := buf.String()
+
+	assert.Contains(t, output, "Deal fallback-2")
+	assert.NotContains(t, output, "Unknown")
+}
+
 func TestPrintDealsJSON(t *testing.T) {
 	var buf bytes.Buffer
 	err := display.PrintDealsJSON(&buf, sampleDeals())
