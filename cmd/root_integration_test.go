@@ -30,6 +30,17 @@ func TestRunCLI_HelpStores(t *testing.T) {
 	assert.Empty(t, stderr.String())
 }
 
+func TestRunCLI_HelpCompare(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := runCLI([]string{"help", "compare"}, &stdout, &stderr)
+
+	assert.Equal(t, 0, code)
+	assert.Contains(t, stdout.String(), "pubcli compare [flags]")
+	assert.Empty(t, stderr.String())
+}
+
 func TestRunCLI_TolerantRewriteWithoutNetworkCall(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

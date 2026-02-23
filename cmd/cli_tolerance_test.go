@@ -21,6 +21,13 @@ func TestNormalizeCLIArgs_RewritesTypoFlag(t *testing.T) {
 	assert.NotEmpty(t, notes)
 }
 
+func TestNormalizeCLIArgs_RewritesSortAlias(t *testing.T) {
+	args, notes := normalizeCLIArgs([]string{"orderby=savings"})
+
+	assert.Equal(t, []string{"--sort=savings"}, args)
+	assert.NotEmpty(t, notes)
+}
+
 func TestNormalizeCLIArgs_RewritesCommandTypo(t *testing.T) {
 	args, notes := normalizeCLIArgs([]string{"categoriess", "--zip", "33101"})
 
@@ -47,6 +54,13 @@ func TestNormalizeCLIArgs_RespectsDoubleDashBoundary(t *testing.T) {
 
 	assert.Equal(t, []string{"stores", "--", "zip", "33101"}, args)
 	assert.Empty(t, notes)
+}
+
+func TestNormalizeCLIArgs_RewritesBareFlagsForCompare(t *testing.T) {
+	args, notes := normalizeCLIArgs([]string{"compare", "zip", "33101"})
+
+	assert.Equal(t, []string{"compare", "--zip", "33101"}, args)
+	assert.NotEmpty(t, notes)
 }
 
 func TestNormalizeCLIArgs_LeavesKnownShorthandUntouched(t *testing.T) {

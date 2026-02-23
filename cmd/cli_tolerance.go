@@ -18,13 +18,17 @@ var knownFlags = map[string]flagSpec{
 	"department": {name: "department", requiresValue: true},
 	"bogo":       {name: "bogo", requiresValue: false},
 	"query":      {name: "query", requiresValue: true},
+	"sort":       {name: "sort", requiresValue: true},
 	"limit":      {name: "limit", requiresValue: true},
+	"count":      {name: "count", requiresValue: true},
 	"help":       {name: "help", requiresValue: false},
 }
 
 var knownCommands = []string{
 	"categories",
 	"stores",
+	"compare",
+	"tui",
 	"completion",
 	"help",
 }
@@ -36,6 +40,8 @@ var flagAliases = map[string]string{
 	"storeno":      "store",
 	"dept":         "department",
 	"search":       "query",
+	"orderby":      "sort",
+	"sortby":       "sort",
 	"max":          "limit",
 }
 
@@ -156,7 +162,7 @@ func bareFlagRewriteAllowed(command string) bool {
 	// Some commands (for example `stores` and `categories`) are flag-only, so
 	// rewriting bare tokens like `zip` -> `--zip` is helpful there.
 	switch command {
-	case "stores", "categories":
+	case "stores", "categories", "compare", "tui":
 		return true
 	default:
 		return false

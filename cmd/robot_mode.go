@@ -240,12 +240,12 @@ func shouldAutoJSON(args []string, stdoutIsTTY bool) bool {
 
 // knownShorthands maps single-character shorthands to whether they require a value.
 var knownShorthands = map[byte]bool{
-	's': true,  // --store
-	'z': true,  // --zip
-	'c': true,  // --category
-	'd': true,  // --department
-	'q': true,  // --query
-	'n': true,  // --limit
+	's': true, // --store
+	'z': true, // --zip
+	'c': true, // --category
+	'd': true, // --department
+	'q': true, // --query
+	'n': true, // --limit
 }
 
 func firstCommand(args []string) string {
@@ -299,7 +299,7 @@ func printQuickStart(w io.Writer, asJSON bool) error {
 
 	_, err := fmt.Fprintf(
 		w,
-		"%s\nusage: %s\nexamples:\n  %s\n  %s\n  %s\nflags: --zip --store --json --bogo --category --department --query --limit\n",
+		"%s\nusage: %s\nexamples:\n  %s\n  %s\n  %s\nflags: --zip --store --json --bogo --category --department --query --sort --limit\n",
 		help.Name,
 		help.Usage,
 		help.Examples[0],

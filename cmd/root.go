@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/tayloree/publix-deals/internal/api"
 	"github.com/tayloree/publix-deals/internal/display"
 	"github.com/tayloree/publix-deals/internal/filter"
@@ -18,6 +20,7 @@ var (
 	flagDepartment string
 	flagBogo       bool
 	flagQuery      string
+	flagSort       string
 	flagLimit      int
 	flagJSON       bool
 )
@@ -31,8 +34,10 @@ var rootCmd = &cobra.Command{
 		"(for example: -zip 33101, zip=33101, --ziip 33101).",
 	Example: `  pubcli --zip 33101
   pubcli --store 1425 --bogo
+  pubcli --zip 33101 --sort savings
   pubcli categories --zip 33101
-  pubcli stores --zip 33101 --json`,
+  pubcli stores --zip 33101 --json
+  pubcli compare --zip 33101 --category produce`,
 	RunE: runDeals,
 }
 
@@ -45,12 +50,7 @@ func init() {
 	pf.StringVarP(&flagZip, "zip", "z", "", "Zip code to find nearby stores")
 	pf.BoolVar(&flagJSON, "json", false, "Output as JSON")
 
-	f := rootCmd.Flags()
-	f.StringVarP(&flagCategory, "category", "c", "", "Filter by category (e.g., bogo, meat, produce)")
-	f.StringVarP(&flagDepartment, "department", "d", "", "Filter by department (e.g., Meat, Deli)")
-	f.BoolVar(&flagBogo, "bogo", false, "Show only BOGO deals")
-	f.StringVarP(&flagQuery, "query", "q", "", "Search deals by keyword in title/description")
-	f.IntVarP(&flagLimit, "limit", "n", 0, "Limit number of results (0 = all)")
+	registerDealFilterFlags(rootCmd.Flags())
 }
 
 // Execute runs the root command.
@@ -112,8 +112,32 @@ func resetCLIState() {
 	flagDepartment = ""
 	flagBogo = false
 	flagQuery = ""
+	flagSort = ""
 	flagLimit = 0
+	flagCompareCount = 5
 	flagJSON = false
+}
+
+func registerDealFilterFlags(f *pflag.FlagSet) {
+	f.StringVarP(&flagCategory, "category", "c", "", "Filter by category (e.g., bogo, meat, produce)")
+	f.StringVarP(&flagDepartment, "department", "d", "", "Filter by department (e.g., Meat, Deli)")
+	f.BoolVar(&flagBogo, "bogo", false, "Show only BOGO deals")
+	f.StringVarP(&flagQuery, "query", "q", "", "Search deals by keyword in title/description")
+	f.StringVar(&flagSort, "sort", "", "Sort deals by relevance, savings, or ending")
+	f.IntVarP(&flagLimit, "limit", "n", 0, "Limit number of results (0 = all)")
+}
+
+func validateSortMode() error {
+	switch strings.ToLower(strings.TrimSpace(flagSort)) {
+	case "", "relevance", "savings", "ending", "end", "expiry", "expiration":
+		return nil
+	default:
+		return invalidArgsError(
+			"invalid value for --sort (use relevance, savings, or ending)",
+			"pubcli --zip 33101 --sort savings",
+			"pubcli --zip 33101 --sort ending",
+		)
+	}
 }
 
 func resolveStore(cmd *cobra.Command, client *api.Client) (string, error) {
@@ -147,6 +171,10 @@ func resolveStore(cmd *cobra.Command, client *api.Client) (string, error) {
 }
 
 func runDeals(cmd *cobra.Command, _ []string) error {
+	if err := validateSortMode(); err != nil {
+		return err
+	}
+
 	client := api.NewClient()
 
 	storeNumber, err := resolveStore(cmd, client)
@@ -172,6 +200,7 @@ func runDeals(cmd *cobra.Command, _ []string) error {
 		Category:   flagCategory,
 		Department: flagDepartment,
 		Query:      flagQuery,
+		Sort:       flagSort,
 		Limit:      flagLimit,
 	})
 
