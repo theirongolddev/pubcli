@@ -2,6 +2,7 @@ package filter
 
 import (
 	"html"
+	"sort"
 	"strings"
 
 	"github.com/tayloree/publix-deals/internal/api"
@@ -13,6 +14,7 @@ type Options struct {
 	Category   string
 	Department string
 	Query      string
+	Sort       string
 	Limit      int
 }
 
@@ -22,8 +24,10 @@ func Apply(items []api.SavingItem, opts Options) []api.SavingItem {
 	wantDepartment := opts.Department != ""
 	wantQuery := opts.Query != ""
 	needsFiltering := opts.BOGO || wantCategory || wantDepartment || wantQuery
+	sortMode := normalizeSortMode(opts.Sort)
+	hasSort := sortMode != ""
 
-	if !needsFiltering {
+	if !needsFiltering && !hasSort {
 		if opts.Limit > 0 && opts.Limit < len(items) {
 			return items[:opts.Limit]
 		}
@@ -37,9 +41,10 @@ func Apply(items []api.SavingItem, opts Options) []api.SavingItem {
 		result = make([]api.SavingItem, 0, len(items))
 	}
 
-	category := opts.Category
 	department := strings.ToLower(opts.Department)
 	query := strings.ToLower(opts.Query)
+	applyLimitWhileFiltering := !hasSort && opts.Limit > 0
+	categoryMatcher := newCategoryMatcher(opts.Category)
 
 	for _, item := range items {
 		if opts.BOGO || wantCategory {
@@ -50,7 +55,7 @@ func Apply(items []api.SavingItem, opts Options) []api.SavingItem {
 				if !hasBogo && strings.EqualFold(c, "bogo") {
 					hasBogo = true
 				}
-				if !hasCategory && strings.EqualFold(c, category) {
+				if !hasCategory && categoryMatcher.matches(c) {
 					hasCategory = true
 				}
 				if hasBogo && hasCategory {
@@ -76,9 +81,16 @@ func Apply(items []api.SavingItem, opts Options) []api.SavingItem {
 		}
 
 		result = append(result, item)
-		if opts.Limit > 0 && len(result) >= opts.Limit {
+		if applyLimitWhileFiltering && len(result) >= opts.Limit {
 			break
 		}
+	}
+
+	if hasSort && len(result) > 1 {
+		sortItems(result, sortMode)
+	}
+	if opts.Limit > 0 && opts.Limit < len(result) {
+		result = result[:opts.Limit]
 	}
 
 	if len(result) == 0 {
@@ -131,4 +143,36 @@ func ContainsIgnoreCase(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+func sortItems(items []api.SavingItem, mode string) {
+	switch mode {
+	case "savings":
+		sort.SliceStable(items, func(i, j int) bool {
+			left := DealScore(items[i])
+			right := DealScore(items[j])
+			if left == right {
+				return strings.ToLower(CleanText(Deref(items[i].Title))) < strings.ToLower(CleanText(Deref(items[j].Title)))
+			}
+			return left > right
+		})
+	case "ending":
+		sort.SliceStable(items, func(i, j int) bool {
+			leftDate, leftOK := parseDealDate(items[i].EndFormatted)
+			rightDate, rightOK := parseDealDate(items[j].EndFormatted)
+			switch {
+			case leftOK && rightOK:
+				if leftDate.Equal(rightDate) {
+					return DealScore(items[i]) > DealScore(items[j])
+				}
+				return leftDate.Before(rightDate)
+			case leftOK:
+				return true
+			case rightOK:
+				return false
+			default:
+				return DealScore(items[i]) > DealScore(items[j])
+			}
+		})
+	}
 }

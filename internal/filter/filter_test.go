@@ -73,6 +73,25 @@ func TestApply_CategoryCaseInsensitive(t *testing.T) {
 	assert.Len(t, result, 2)
 }
 
+func TestApply_CategorySynonym(t *testing.T) {
+	result := filter.Apply(sampleItems(), filter.Options{Category: "veggies"})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "3", result[0].ID)
+}
+
+func TestApply_CategoryHyphenatedExactMatch(t *testing.T) {
+	result := filter.Apply(sampleItems(), filter.Options{Category: "pet-bogos"})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "4", result[0].ID)
+}
+
+func TestApply_CategoryUnknownPluralStillMatchesExact(t *testing.T) {
+	items := []api.SavingItem{{ID: "x", Categories: []string{"snacks"}}}
+	result := filter.Apply(items, filter.Options{Category: "snacks"})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "x", result[0].ID)
+}
+
 func TestApply_Department(t *testing.T) {
 	result := filter.Apply(sampleItems(), filter.Options{Department: "produce"})
 	assert.Len(t, result, 1)
@@ -114,6 +133,33 @@ func TestApply_CombinedFilters(t *testing.T) {
 	})
 	assert.Len(t, result, 1)
 	assert.Equal(t, "2", result[0].ID)
+}
+
+func TestApply_SortSavings(t *testing.T) {
+	items := []api.SavingItem{
+		{ID: "a", Title: ptr("A"), Savings: ptr("$1.00 off")},
+		{ID: "b", Title: ptr("B"), Savings: ptr("$4.00 off")},
+		{ID: "c", Title: ptr("C"), Categories: []string{"bogo"}},
+	}
+	result := filter.Apply(items, filter.Options{Sort: "savings"})
+
+	assert.Len(t, result, 3)
+	assert.Equal(t, "c", result[0].ID)
+	assert.Equal(t, "b", result[1].ID)
+}
+
+func TestApply_SortEnding(t *testing.T) {
+	items := []api.SavingItem{
+		{ID: "late", EndFormatted: "12/31/2026"},
+		{ID: "soon", EndFormatted: "01/02/2026"},
+		{ID: "unknown"},
+	}
+	result := filter.Apply(items, filter.Options{Sort: "ending"})
+
+	assert.Len(t, result, 3)
+	assert.Equal(t, "soon", result[0].ID)
+	assert.Equal(t, "late", result[1].ID)
+	assert.Equal(t, "unknown", result[2].ID)
 }
 
 func TestApply_NilFields(t *testing.T) {
